@@ -356,6 +356,26 @@
             color: var(--chalk-muted);
         }
         
+        .help-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background: var(--chalk-muted);
+            color: var(--chalkboard-bg);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 16px;
+            font-size: 0.7em;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        
+        .help-icon:hover {
+            background: var(--chalk-accent);
+        }
+        
         /* Section Headers */
         .section-header {
             font-size: 1.3em;
@@ -932,6 +952,17 @@
                     </div>
                 </div>
 
+                <div class="section-header">Data Management</div>
+                <button class="add-btn" onclick="clearCompletedMissions()" style="background: transparent; border-color: var(--chalk-warning); color: var(--chalk-warning);">
+                    🗑️ Clear Completed Missions
+                </button>
+                <button class="add-btn" onclick="resetFamilyData()" style="background: transparent; border-color: var(--chalk-danger); color: var(--chalk-danger);">
+                    ⚠️ Reset All Family Data
+                </button>
+                <p style="color: var(--chalk-muted); font-size: 0.85em; margin-top: -10px; margin-bottom: 20px; text-align: center; font-style: italic;">
+                    💡 Tip: Regular clears help build structure. Works best when you schedule missions by the week and clear completed ones for a fresh start.
+                </p>
+
                 <div class="section-header">Family Members</div>
                 <div id="missionControlMembersList"></div>
 
@@ -1404,7 +1435,8 @@
                 const currentValue = select.value;
                 select.innerHTML = '<option value="anyone">Anyone</option>';
                 
-                allMembers.filter(m => m.role === 'child').forEach(member => {
+                // Add all family members including parents
+                allMembers.forEach(member => {
                     const option = document.createElement('option');
                     option.value = member.id;
                     option.textContent = member.name || member.email;
@@ -1421,8 +1453,10 @@
             // Filter missions for current member
             const activeMissions = missions.filter(m => {
                 if (m.status !== 'active') return false;
-                if (isParent) return m.createdBy === currentUser.uid;
-                return m.assignedTo === currentMember.id || m.assignedTo === 'anyone';
+                // Show missions assigned to this member, to "anyone", or created by this parent
+                return m.assignedTo === currentMember.id || 
+                       m.assignedTo === 'anyone' || 
+                       (isParent && m.createdBy === currentUser.uid);
             });
             
             const requestedMissions = missions.filter(m => {
@@ -1558,7 +1592,10 @@
             personalStats.innerHTML = `
                 <div class="stat-card highlight">
                     <div class="stat-value">${totalPoints}</div>
-                    <div class="stat-label">Total Points</div>
+                    <div class="stat-label">
+                        Total Points
+                        <span class="help-icon" title="Points decay 10% per day when missions are completed late (max 90% decay). Complete on time for full points!">?</span>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${activeMissionsCount}</div>
@@ -1805,16 +1842,33 @@
             if (!mission) return;
             
             try {
+                // Calculate points with decay if overdue
+                let finalPoints = mission.points;
+                let decayMessage = '';
+                
+                if (mission.dueDate) {
+                    const dueDate = new Date(mission.dueDate);
+                    const now = new Date();
+                    const daysOverdue = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysOverdue > 0) {
+                        const decayPercent = Math.min(daysOverdue * 10, 90); // 10% per day, max 90%
+                        finalPoints = Math.max(Math.round(mission.points * (1 - decayPercent / 100)), 1); // Min 1 point
+                        decayMessage = `\n\n⚠️ ${daysOverdue} day(s) overdue: ${decayPercent}% decay applied`;
+                    }
+                }
+                
                 await addDoc(collection(db, 'completions'), {
                     familyId: currentFamily.id,
                     memberId: currentMember.id,
                     missionId: missionId,
-                    points: mission.points,
+                    points: finalPoints,
+                    originalPoints: mission.points,
                     completedAt: serverTimestamp()
                 });
                 
                 // Don't delete the mission - keep it active for others
-                alert(`Mission completed! +${mission.points} points`);
+                alert(`Mission completed! +${finalPoints} points${decayMessage}`);
             } catch (error) {
                 console.error('Error completing mission:', error);
                 alert('Failed to complete mission. Please try again.');
@@ -2059,6 +2113,84 @@
         window.closeDisclaimer = () => {
             document.getElementById('disclaimerDrawer').classList.remove('open');
             document.getElementById('disclaimerOverlay').classList.remove('active');
+        };
+
+        // Clear Completed Missions
+        window.clearCompletedMissions = async () => {
+            if (!confirm('Clear all completed missions? This will remove completion records but keep the points earned. This cannot be undone.')) return;
+            
+            const isParent = currentMember && currentMember.role === 'parent';
+            
+            try {
+                let completionsToDelete;
+                
+                if (isParent) {
+                    // Parents clear all family completions
+                    completionsToDelete = completions.filter(c => c.familyId === currentFamily.id);
+                } else {
+                    // Kids clear only their own completions
+                    completionsToDelete = completions.filter(c => 
+                        c.familyId === currentFamily.id && c.memberId === currentMember.id
+                    );
+                }
+                
+                for (const completion of completionsToDelete) {
+                    await deleteDoc(doc(db, 'completions', completion.id));
+                }
+                
+                alert('✅ Completed missions cleared!');
+            } catch (error) {
+                console.error('Error clearing completed missions:', error);
+                alert('Failed to clear completed missions. Please try again.');
+            }
+        };
+
+        // Reset All Family Data
+        window.resetFamilyData = async () => {
+            if (!currentFamily || !currentMember || currentMember.role !== 'parent') {
+                alert('Only parents can reset family data');
+                return;
+            }
+
+            if (!confirm('⚠️ WARNING: This will DELETE ALL missions, completions, routines, and points for your entire family. This CANNOT be undone.\n\nFamily members and settings will be kept.\n\nAre you absolutely sure?')) return;
+            
+            if (!confirm('This is your last chance. Click OK to confirm total deletion.')) return;
+            
+            const confirmation = prompt('Type YES in all caps to confirm deletion:');
+            if (confirmation !== 'YES') {
+                alert('Reset cancelled');
+                return;
+            }
+            
+            try {
+                // Delete all missions
+                const missionsToDelete = missions.filter(m => m.familyId === currentFamily.id);
+                for (const mission of missionsToDelete) {
+                    await deleteDoc(doc(db, 'missions', mission.id));
+                }
+                
+                // Delete all completions
+                const completionsToDelete = completions.filter(c => c.familyId === currentFamily.id);
+                for (const completion of completionsToDelete) {
+                    await deleteDoc(doc(db, 'completions', completion.id));
+                }
+                
+                // Delete all routines for all family members
+                const allFamilyMemberIds = allMembers.map(m => m.userId);
+                const routinesQuery = query(
+                    collection(db, 'routines'),
+                    where('userId', 'in', allFamilyMemberIds)
+                );
+                const routinesSnapshot = await getDocs(routinesQuery);
+                for (const routineDoc of routinesSnapshot.docs) {
+                    await deleteDoc(doc(db, 'routines', routineDoc.id));
+                }
+                
+                alert('✅ All family data has been reset! Starting fresh.');
+            } catch (error) {
+                console.error('Error resetting family data:', error);
+                alert('Failed to reset family data. Please try again.');
+            }
         };
     </script>
 </body>
