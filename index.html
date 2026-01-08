@@ -2320,7 +2320,7 @@
                 return;
             }
 
-            if (!confirm('⚠️ WARNING: This will DELETE ALL missions, completions, routines, and points for your entire family. This CANNOT be undone.\n\nFamily members and settings will be kept.\n\nAre you absolutely sure?')) return;
+            if (!confirm('⚠️ WARNING: This will DELETE ALL missions and completion history for your entire family. This CANNOT be undone.\n\nFamily members, routines, and settings will be kept.\n\nAre you absolutely sure?')) return;
             
             if (!confirm('This is your last chance. Click OK to confirm total deletion.')) return;
             
@@ -2343,18 +2343,7 @@
                     await deleteDoc(doc(db, 'completions', completion.id));
                 }
                 
-                // Delete all routines for all family members
-                const allFamilyMemberIds = allMembers.map(m => m.userId);
-                const routinesQuery = query(
-                    collection(db, 'routines'),
-                    where('userId', 'in', allFamilyMemberIds)
-                );
-                const routinesSnapshot = await getDocs(routinesQuery);
-                for (const routineDoc of routinesSnapshot.docs) {
-                    await deleteDoc(doc(db, 'routines', routineDoc.id));
-                }
-                
-                alert('✅ All family data has been reset! Starting fresh.');
+                alert('✅ All mission data has been reset! Starting fresh. Routines and members have been preserved.');
             } catch (error) {
                 console.error('Error resetting family data:', error);
                 alert('Failed to reset family data. Please try again.');
