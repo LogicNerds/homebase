@@ -855,12 +855,44 @@
             display: block; 
         }
         
+        /* Completion Log Table */
+        .completion-log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .completion-log-table th {
+            background: var(--card-border);
+            color: var(--chalk-text);
+            padding: 10px;
+            text-align: left;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .completion-log-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--chalk-muted);
+            font-size: 0.85em;
+        }
+        
+        .completion-log-table tr:hover {
+            background: var(--card-bg);
+        }
+        
         /* Responsive */
         @media (max-width: 480px) {
             .header h1 { font-size: 1.6em; }
             .user-avatar { width: 32px; height: 32px; }
             .action-btn { padding: 12px 8px; font-size: 0.85em; }
             .nav-item { font-size: 0.8em; padding: 12px 8px; }
+            .completion-log-table th,
+            .completion-log-table td { 
+                padding: 8px 5px; 
+                font-size: 0.75em; 
+            }
         }
     </style>
 </head>
@@ -989,15 +1021,15 @@
                     </div>
                 </div>
 
+                <div class="section-header">Completion Log</div>
+                <div id="completionLogList"></div>
+
                 <div class="section-header">Data Management</div>
-                <button class="add-btn" onclick="clearCompletedMissions()" style="background: transparent; border-color: var(--chalk-warning); color: var(--chalk-warning);">
-                    🗑️ Clear Completed Missions
-                </button>
                 <button class="add-btn" onclick="resetFamilyData()" style="background: transparent; border-color: var(--chalk-danger); color: var(--chalk-danger);">
                     ⚠️ Reset All Family Data
                 </button>
                 <p style="color: var(--chalk-muted); font-size: 0.85em; margin-top: -10px; margin-bottom: 20px; text-align: center; font-style: italic;">
-                    💡 Tip: Regular clears help build structure. Works best when you schedule missions by the week and clear completed ones for a fresh start.
+                    💡 Tip: Use reset to start fresh each week or month. All missions and completion history will be deleted.
                 </p>
 
                 <div class="section-header">Family Members</div>
@@ -1466,6 +1498,71 @@
                 `;
                 membersList.appendChild(card);
             });
+            
+            // Update completion log
+            updateCompletionLog();
+        }
+
+        function updateCompletionLog() {
+            const isParent = currentMember && currentMember.role === 'parent';
+            if (!isParent) return;
+            
+            const logList = document.getElementById('completionLogList');
+            
+            // Sort completions by date (most recent first)
+            const sortedCompletions = [...completions].sort((a, b) => {
+                const dateA = a.completedAt?.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
+                const dateB = b.completedAt?.toDate ? b.completedAt.toDate() : new Date(b.completedAt);
+                return dateB - dateA;
+            });
+            
+            if (sortedCompletions.length === 0) {
+                logList.innerHTML = '<p style="color: var(--chalk-muted); text-align: center; padding: 20px;">No completed missions yet</p>';
+                return;
+            }
+            
+            // Show only the most recent 20 completions
+            const recentCompletions = sortedCompletions.slice(0, 20);
+            
+            let tableHTML = `
+                <table class="completion-log-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Mission</th>
+                            <th>Date</th>
+                            <th>Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            recentCompletions.forEach(completion => {
+                const date = completion.completedAt?.toDate ? 
+                    completion.completedAt.toDate() : 
+                    new Date(completion.completedAt);
+                const dateStr = date.toLocaleDateString();
+                
+                tableHTML += `
+                    <tr>
+                        <td>${completion.memberName || 'Unknown'}</td>
+                        <td>${completion.missionTitle || 'Unknown Mission'}</td>
+                        <td>${dateStr}</td>
+                        <td style="color: var(--chalk-accent); font-weight: 600;">${completion.points}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+            
+            if (sortedCompletions.length > 20) {
+                tableHTML += `<p style="color: var(--chalk-muted); text-align: center; margin-top: 10px; font-size: 0.85em;">Showing 20 most recent completions</p>`;
+            }
+            
+            logList.innerHTML = tableHTML;
         }
 
         function updateAssigneeDropdowns() {
@@ -1611,7 +1708,7 @@
                 card.innerHTML = `
                     <div class="routine-header">
                         <div class="routine-title">${routine.name}</div>
-                        <button class="card-btn danger" onclick="deleteRoutine('${routine.id}', event)" style="width: auto; padding: 8px 16px;">Delete</button>
+                        <button class="card-btn danger" onclick="deleteRoutine('${routine.id}', event)" style="width: auto; padding: 6px 10px; flex: none;">Delete</button>
                     </div>
                     <div>${tasksHTML || '<p style="color: var(--chalk-muted); font-size: 0.9em;">No tasks yet</p>'}</div>
                     <button class="add-btn" onclick="showAddTaskToRoutine('${routine.id}')" style="margin-top: 15px;">+ Add Task</button>
@@ -1931,16 +2028,21 @@
                     }
                 }
                 
+                // Add completion record with mission details
                 await addDoc(collection(db, 'completions'), {
                     familyId: currentFamily.id,
                     memberId: currentMember.id,
+                    memberName: currentMember.name || currentMember.email,
                     missionId: missionId,
+                    missionTitle: mission.title,
                     points: finalPoints,
                     originalPoints: mission.points,
                     completedAt: serverTimestamp()
                 });
                 
-                // Don't delete the mission - keep it active for others
+                // Delete the mission after completion
+                await deleteDoc(doc(db, 'missions', missionId));
+                
                 alert(`Mission completed! +${finalPoints} points${decayMessage}`);
             } catch (error) {
                 console.error('Error completing mission:', error);
@@ -2209,36 +2311,6 @@
         window.closeDisclaimer = () => {
             document.getElementById('disclaimerDrawer').classList.remove('open');
             document.getElementById('disclaimerOverlay').classList.remove('active');
-        };
-
-        // Clear Completed Missions
-        window.clearCompletedMissions = async () => {
-            if (!confirm('Clear all completed missions? This will remove completion records but keep the points earned. This cannot be undone.')) return;
-            
-            const isParent = currentMember && currentMember.role === 'parent';
-            
-            try {
-                let completionsToDelete;
-                
-                if (isParent) {
-                    // Parents clear all family completions
-                    completionsToDelete = completions.filter(c => c.familyId === currentFamily.id);
-                } else {
-                    // Kids clear only their own completions
-                    completionsToDelete = completions.filter(c => 
-                        c.familyId === currentFamily.id && c.memberId === currentMember.id
-                    );
-                }
-                
-                for (const completion of completionsToDelete) {
-                    await deleteDoc(doc(db, 'completions', completion.id));
-                }
-                
-                alert('✅ Completed missions cleared!');
-            } catch (error) {
-                console.error('Error clearing completed missions:', error);
-                alert('Failed to clear completed missions. Please try again.');
-            }
         };
 
         // Reset All Family Data
