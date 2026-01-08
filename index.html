@@ -21,6 +21,10 @@
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             background: var(--chalkboard-bg);
+            background-image: url('https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/homebase_background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: var(--chalk-text);
             min-height: 100vh; 
         }
@@ -91,6 +95,9 @@
             justify-content: center; 
             align-items: center; 
             background: var(--chalkboard-bg);
+            background-image: url('https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/homebase_background.jpg');
+            background-size: cover;
+            background-position: center;
         }
         
         .login-screen h1 { 
@@ -148,6 +155,9 @@
             justify-content: center; 
             align-items: center; 
             background: var(--chalkboard-bg);
+            background-image: url('https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/homebase_background.jpg');
+            background-size: cover;
+            background-position: center;
         }
         
         .setup-screen h2 { 
@@ -899,9 +909,8 @@
 <body>
     <!-- Splash Screen -->
     <div id="splashScreen" class="splash-screen">
-        <div class="splash-bg-placeholder"></div>
-        <div class="splash-logo-placeholder">LOGO<br>HERE</div>
-        <h2 style="color: var(--chalk-text);">Home Base</h2>
+        <div class="splash-bg-placeholder" style="background-image: url('https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/homebase_background.jpg'); background-size: cover; background-position: center;"></div>
+        <img src="https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/Home%20Base%20Logo.png" alt="Home Base Logo" style="width: 200px; height: auto; border-radius: 20px;">
     </div>
 
     <!-- Login Screen -->
@@ -945,8 +954,7 @@
         <!-- Header -->
         <div class="header">
             <div class="header-left">
-                <div class="logo-placeholder">LOGO</div>
-                <h2 style="font-size: 1.2em; font-weight: 600; margin: 0; color: var(--chalk-text);">Home Base</h2>
+                <img src="https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/Home%20Base%20Logo.png" alt="Home Base" style="width: 40px; height: 40px; border-radius: 8px;">
             </div>
             <div class="header-right">
                 <img id="userAvatar" class="user-avatar" src="" alt="User">
