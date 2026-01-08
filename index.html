@@ -33,8 +33,8 @@
             max-width: 500px; 
             margin: 0 auto; 
             min-height: 100vh; 
-            background: var(--chalkboard-bg);
-            box-shadow: 0 0 50px rgba(0,0,0,0.5); 
+            background: transparent;
+            box-shadow: none;
         }
         
         .hidden { display: none !important; }
@@ -915,7 +915,7 @@
 
     <!-- Login Screen -->
     <div id="loginScreen" class="login-screen hidden">
-        <h1>🏠 Home Base</h1>
+        <img src="https://raw.githubusercontent.com/LogicNerds/homebase/main/assets/Home%20Base%20Logo.png" alt="Home Base Logo" style="width: 200px; height: auto; border-radius: 20px; margin-bottom: 20px;">
         <p>Your mission control center for family tasks and routines</p>
         <button class="google-signin-btn" onclick="signInWithGoogle()">
             <svg class="google-icon" viewBox="0 0 24 24">
