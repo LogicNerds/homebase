@@ -958,6 +958,7 @@
             </div>
             <div class="header-right">
                 <img id="userAvatar" class="user-avatar" src="" alt="User">
+                <button class="theme-btn" onclick="showThemeModal()" title="Change Theme">🎨</button>
                 <button class="logout-btn" onclick="signOut()">Logout</button>
             </div>
         </div>
@@ -1170,6 +1171,58 @@
             <div class="modal-buttons">
                 <button class="modal-btn secondary" onclick="closeModal('editMissionModal')">Cancel</button>
                 <button class="modal-btn primary" onclick="updateMission()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Modal -->
+    <div id="themeModal" class="modal">
+        <div class="modal-content">
+            <h2>Choose Your Theme</h2>
+            <div class="theme-option" onclick="setTheme('amber')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #f4a261"></div>
+                    <div class="theme-preview-color" style="background: #e76f51"></div>
+                </div>
+                <div class="theme-name">🔶 Amber (Default)</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('mint')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #6dd4a8"></div>
+                    <div class="theme-preview-color" style="background: #5bc4a0"></div>
+                </div>
+                <div class="theme-name">🌿 Mint</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('military')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #6b8e23"></div>
+                    <div class="theme-preview-color" style="background: #556b2f"></div>
+                </div>
+                <div class="theme-name">🎖️ Military Green</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('steel')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #4682b4"></div>
+                    <div class="theme-preview-color" style="background: #5f9ea0"></div>
+                </div>
+                <div class="theme-name">⚙️ Steel Blue</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('rose')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #e6a8a8"></div>
+                    <div class="theme-preview-color" style="background: #d4a5a5"></div>
+                </div>
+                <div class="theme-name">💎 Rose Gold</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('lavender')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #9b7bbe"></div>
+                    <div class="theme-preview-color" style="background: #b19cd9"></div>
+                </div>
+                <div class="theme-name">🌸 Lavender</div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('themeModal')">Close</button>
             </div>
         </div>
     </div>
@@ -2362,6 +2415,51 @@
             document.getElementById('disclaimerDrawer').classList.remove('open');
             document.getElementById('disclaimerOverlay').classList.remove('active');
         };
+
+        // Theme management
+        const themes = {
+            amber: {
+                accentPrimary: '#f4a261',
+                accentSecondary: '#e76f51'
+            },
+            mint: {
+                accentPrimary: '#6dd4a8',
+                accentSecondary: '#5bc4a0'
+            },
+            military: {
+                accentPrimary: '#6b8e23',
+                accentSecondary: '#556b2f'
+            },
+            steel: {
+                accentPrimary: '#4682b4',
+                accentSecondary: '#5f9ea0'
+            },
+            rose: {
+                accentPrimary: '#e6a8a8',
+                accentSecondary: '#d4a5a5'
+            },
+            lavender: {
+                accentPrimary: '#9b7bbe',
+                accentSecondary: '#b19cd9'
+            }
+        };
+
+        window.showThemeModal = () => document.getElementById('themeModal').classList.add('active');
+
+        window.setTheme = (themeName) => {
+            const theme = themes[themeName];
+            if (!theme) return;
+            const root = document.documentElement;
+            root.style.setProperty('--chalk-accent', theme.accentPrimary);
+            localStorage.setItem('homeBaseTheme', themeName);
+            closeModal('themeModal');
+        };
+
+        // Load saved theme on startup
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('homeBaseTheme') || 'amber';
+            if (savedTheme && themes[savedTheme]) setTheme(savedTheme);
+        });
 
         // Reset All Family Data
         window.resetFamilyData = async () => {
