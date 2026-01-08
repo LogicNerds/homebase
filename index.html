@@ -1313,8 +1313,7 @@
             
             const missionsQuery = query(
                 collection(db, 'missions'), 
-                where('familyId', '==', currentFamily.id),
-                orderBy('dueDate', 'asc')
+                where('familyId', '==', currentFamily.id)
             );
             
             unsubscribeMissionsListener = onSnapshot(missionsQuery, (snapshot) => {
@@ -1322,6 +1321,15 @@
                 snapshot.forEach((doc) => {
                     missions.push({ id: doc.id, ...doc.data() });
                 });
+                
+                // Sort missions client-side by due date (null dates go to end)
+                missions.sort((a, b) => {
+                    if (!a.dueDate && !b.dueDate) return 0;
+                    if (!a.dueDate) return 1;
+                    if (!b.dueDate) return -1;
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                });
+                
                 updateMissionsUI();
             });
         }
