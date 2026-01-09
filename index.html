@@ -981,8 +981,11 @@
                 <div class="section-header">Active Missions</div>
                 <div id="activeMissionsList"></div>
                 
-                <div class="section-header">Requested Missions</div>
+                <div class="section-header">Mission Requests</div>
                 <div id="requestedMissionsList"></div>
+                
+                <div class="section-header" id="completionApprovalsHeader">Completion Approvals</div>
+                <div id="completionApprovalsList"></div>
             </div>
 
             <!-- ROUTINES TAB -->
@@ -1072,13 +1075,12 @@
                 <input type="date" id="missionDueDate">
             </div>
             <div class="form-group" id="missionPointsGroup">
-                <label>Points (10-100)</label>
+                <label>Points</label>
                 <div class="points-picker">
-                    <button type="button" class="points-btn selected" onclick="selectMissionPoints(10, this)">10</button>
-                    <button type="button" class="points-btn" onclick="selectMissionPoints(25, this)">25</button>
-                    <button type="button" class="points-btn" onclick="selectMissionPoints(50, this)">50</button>
-                    <button type="button" class="points-btn" onclick="selectMissionPoints(75, this)">75</button>
-                    <button type="button" class="points-btn" onclick="selectMissionPoints(100, this)">100</button>
+                    <button type="button" class="points-btn selected" onclick="selectMissionPoints(1, this)">1</button>
+                    <button type="button" class="points-btn" onclick="selectMissionPoints(5, this)">5</button>
+                    <button type="button" class="points-btn" onclick="selectMissionPoints(10, this)">10</button>
+                    <button type="button" class="points-btn" onclick="selectMissionPoints(20, this)">20</button>
                 </div>
             </div>
             <div class="form-group" id="missionSideMissionGroup">
@@ -1147,13 +1149,12 @@
                 <input type="date" id="editMissionDueDate">
             </div>
             <div class="form-group">
-                <label>Points (10-100)</label>
+                <label>Points</label>
                 <div class="points-picker">
+                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(1, this)">1</button>
+                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(5, this)">5</button>
                     <button type="button" class="points-btn" onclick="selectEditMissionPoints(10, this)">10</button>
-                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(25, this)">25</button>
-                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(50, this)">50</button>
-                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(75, this)">75</button>
-                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(100, this)">100</button>
+                    <button type="button" class="points-btn" onclick="selectEditMissionPoints(20, this)">20</button>
                 </div>
             </div>
             <div class="form-group">
@@ -1171,6 +1172,27 @@
             <div class="modal-buttons">
                 <button class="modal-btn secondary" onclick="closeModal('editMissionModal')">Cancel</button>
                 <button class="modal-btn primary" onclick="updateMission()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approve Mission Request Modal -->
+    <div id="approveMissionModal" class="modal">
+        <div class="modal-content">
+            <h2>Approve Mission Request</h2>
+            <p style="color: var(--chalk-muted); margin-bottom: 20px;">Assign points for this mission:</p>
+            <div class="form-group">
+                <label>Points</label>
+                <div class="points-picker">
+                    <button type="button" class="points-btn selected" onclick="selectApproveMissionPoints(1, this)">1</button>
+                    <button type="button" class="points-btn" onclick="selectApproveMissionPoints(5, this)">5</button>
+                    <button type="button" class="points-btn" onclick="selectApproveMissionPoints(10, this)">10</button>
+                    <button type="button" class="points-btn" onclick="selectApproveMissionPoints(20, this)">20</button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('approveMissionModal')">Cancel</button>
+                <button class="modal-btn primary" onclick="confirmApproveMission()">Approve Mission</button>
             </div>
         </div>
     </div>
@@ -1297,9 +1319,11 @@
         let unsubscribeMissionsListener = null;
         let unsubscribeRoutinesListener = null;
         let unsubscribeCompletionsListener = null;
-        let selectedMissionPoints = 10;
-        let selectedEditMissionPoints = 10;
+        let selectedMissionPoints = 1;
+        let selectedEditMissionPoints = 1;
+        let selectedApproveMissionPoints = 1;
         let currentEditMissionId = null;
+        let currentApproveMissionId = null;
         let currentEditMemberId = null;
         let currentRoutineId = null;
         let currentTab = 'home';
@@ -1686,6 +1710,18 @@
                 return m.createdBy === currentUser.uid; // Kids see their own requests
             });
             
+            const submittedMissions = missions.filter(m => {
+                if (m.status !== 'submitted') return false;
+                if (isParent) return true; // Parents see all submitted for approval
+                return m.submittedBy === currentMember.id; // Kids see their own submissions
+            });
+            
+            // Update section header text based on role
+            const completionHeader = document.getElementById('completionApprovalsHeader');
+            if (completionHeader) {
+                completionHeader.textContent = isParent ? 'Completion Approvals' : 'Pending Approvals';
+            }
+            
             // Update active missions list
             const activeList = document.getElementById('activeMissionsList');
             activeList.innerHTML = '';
@@ -1711,11 +1747,25 @@
                     requestedList.appendChild(card);
                 });
             }
+            
+            // Update completion approvals list
+            const approvalsList = document.getElementById('completionApprovalsList');
+            approvalsList.innerHTML = '';
+            
+            if (submittedMissions.length === 0) {
+                approvalsList.innerHTML = '<p style="color: var(--chalk-muted); text-align: center; padding: 20px;">No pending approvals</p>';
+            } else {
+                submittedMissions.forEach(mission => {
+                    const card = createMissionCard(mission, isParent);
+                    approvalsList.appendChild(card);
+                });
+            }
         }
 
         function createMissionCard(mission, isParent) {
             const card = document.createElement('div');
             const isPending = mission.status === 'pending';
+            const isSubmitted = mission.status === 'submitted';
             const isSideMission = mission.sideMission;
             
             card.className = `card ${isPending ? 'pending' : ''} ${isSideMission ? 'side-mission' : ''}`;
@@ -1726,14 +1776,31 @@
             const dueDate = mission.dueDate ? new Date(mission.dueDate).toLocaleDateString() : 'No due date';
             
             let actionsHTML = '';
+            let statusBadge = '';
+            
             if (isPending && isParent) {
+                // Mission request approval
                 actionsHTML = `
                     <div class="card-actions">
                         <button class="card-btn success" onclick="approveMission('${mission.id}', event)">Approve</button>
                         <button class="card-btn danger" onclick="deleteMission('${mission.id}', event)">Reject</button>
                     </div>
                 `;
-            } else if (!isPending) {
+            } else if (isSubmitted && isParent) {
+                // Completion approval (parent view)
+                statusBadge = '<span class="card-badge" style="background: var(--chalk-warning);">⏳ Awaiting Approval</span>';
+                actionsHTML = `
+                    <div class="card-actions">
+                        <button class="card-btn success" onclick="approveCompletion('${mission.id}', event)">Approve</button>
+                        <button class="card-btn danger" onclick="rejectCompletion('${mission.id}', event)">Reject</button>
+                    </div>
+                `;
+            } else if (isSubmitted && !isParent) {
+                // Submitted by kid, waiting for approval
+                statusBadge = '<span class="card-badge" style="background: var(--chalk-warning);">⏳ Submitted for Approval</span>';
+                actionsHTML = ''; // No actions for kids on submitted missions
+            } else if (mission.status === 'active') {
+                // Active mission - can be completed
                 actionsHTML = `
                     <div class="card-actions">
                         <button class="card-btn success" onclick="completeMission('${mission.id}', event)">Complete</button>
@@ -1745,12 +1812,15 @@
                 `;
             }
             
+            const pointsDisplay = mission.points ? `${mission.points} pts` : 'Pending';
+            
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-title">${mission.title}</div>
                     <div>
+                        ${statusBadge}
                         ${isSideMission ? '<span class="card-badge side-mission">⭐ Side Mission</span>' : ''}
-                        <span class="card-badge points">${mission.points} pts</span>
+                        <span class="card-badge points">${pointsDisplay}</span>
                     </div>
                 </div>
                 <div class="card-body">${mission.description || 'No description'}</div>
@@ -1983,11 +2053,12 @@
                     title: title,
                     description: description,
                     dueDate: dueDate,
-                    points: selectedMissionPoints,
-                    assignedTo: isParent ? assignedTo : 'anyone',
-                    sideMission: isParent ? sideMission : false,
+                    points: isParent ? selectedMissionPoints : null, // Kids don't assign points
+                    assignedTo: isParent ? assignedTo : currentMember.id, // Kids auto-assign to themselves
+                    sideMission: isParent ? sideMission : true, // Kid requests default to side mission
                     status: isParent ? 'active' : 'pending',
                     createdBy: currentUser.uid,
+                    requestedBy: isParent ? null : currentMember.id, // Track who requested it
                     createdAt: serverTimestamp()
                 });
                 
@@ -1996,10 +2067,116 @@
                 document.getElementById('missionDescription').value = '';
                 document.getElementById('missionDueDate').value = '';
                 document.getElementById('missionSideMission').checked = false;
-                selectedMissionPoints = 10;
+                selectedMissionPoints = 1;
             } catch (error) {
                 console.error('Error adding mission:', error);
                 alert('Failed to add mission. Please try again.');
+            }
+        };
+
+        window.approveMission = async (missionId, event) => {
+            event.stopPropagation();
+            currentApproveMissionId = missionId;
+            selectedApproveMissionPoints = 1;
+            
+            // Reset points picker
+            document.querySelectorAll('#approveMissionModal .points-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('#approveMissionModal .points-btn')[0].classList.add('selected');
+            
+            showModal('approveMissionModal');
+        };
+
+        window.selectApproveMissionPoints = (points, el) => {
+            selectedApproveMissionPoints = points;
+            document.querySelectorAll('#approveMissionModal .points-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        };
+
+        window.confirmApproveMission = async () => {
+            if (!currentApproveMissionId) return;
+            
+            const mission = missions.find(m => m.id === currentApproveMissionId);
+            if (!mission) return;
+            
+            try {
+                await updateDoc(doc(db, 'missions', currentApproveMissionId), {
+                    status: 'active',
+                    points: selectedApproveMissionPoints,
+                    assignedTo: mission.requestedBy || mission.assignedTo // Assign to requester
+                });
+                
+                closeModal('approveMissionModal');
+                currentApproveMissionId = null;
+                alert('Mission approved!');
+            } catch (error) {
+                console.error('Error approving mission:', error);
+                alert('Failed to approve mission. Please try again.');
+            }
+        };
+
+        window.approveCompletion = async (missionId, event) => {
+            event.stopPropagation();
+            
+            const mission = missions.find(m => m.id === missionId);
+            if (!mission) return;
+            
+            try {
+                // Calculate points with decay if overdue
+                let finalPoints = mission.points;
+                let decayMessage = '';
+                
+                if (mission.dueDate) {
+                    const dueDate = new Date(mission.dueDate);
+                    dueDate.setHours(0, 0, 0, 0); // Set to midnight
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0); // Set to midnight
+                    const daysOverdue = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysOverdue > 0) {
+                        const decayPercent = Math.min(daysOverdue * 10, 90); // 10% per day, max 90%
+                        finalPoints = Math.max(Math.round(mission.points * (1 - decayPercent / 100)), 1); // Min 1 point
+                        decayMessage = ` (${decayPercent}% decay applied for being ${daysOverdue} day(s) late)`;
+                    }
+                }
+                
+                // Add completion record with mission details
+                await addDoc(collection(db, 'completions'), {
+                    familyId: currentFamily.id,
+                    memberId: mission.submittedBy || mission.assignedTo,
+                    memberName: allMembers.find(m => m.id === (mission.submittedBy || mission.assignedTo))?.name || 'Unknown',
+                    missionId: missionId,
+                    missionTitle: mission.title,
+                    points: finalPoints,
+                    originalPoints: mission.points,
+                    completedAt: serverTimestamp()
+                });
+                
+                // Delete the mission after completion approval
+                await deleteDoc(doc(db, 'missions', missionId));
+                
+                alert(`Completion approved! +${finalPoints} points awarded${decayMessage}`);
+            } catch (error) {
+                console.error('Error approving completion:', error);
+                alert('Failed to approve completion. Please try again.');
+            }
+        };
+
+        window.rejectCompletion = async (missionId, event) => {
+            event.stopPropagation();
+            
+            if (!confirm('Reject this completion? The mission will return to active status.')) return;
+            
+            try {
+                await updateDoc(doc(db, 'missions', missionId), {
+                    status: 'active',
+                    submittedBy: null,
+                    submittedAt: null
+                });
+                
+                alert('Completion rejected. Mission returned to active status.');
+            } catch (error) {
+                console.error('Error rejecting completion:', error);
+                alert('Failed to reject completion. Please try again.');
             }
         };
 
@@ -2091,41 +2268,17 @@
             if (!mission) return;
             
             try {
-                // Calculate points with decay if overdue
-                let finalPoints = mission.points;
-                let decayMessage = '';
-                
-                if (mission.dueDate) {
-                    const dueDate = new Date(mission.dueDate);
-                    const now = new Date();
-                    const daysOverdue = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
-                    
-                    if (daysOverdue > 0) {
-                        const decayPercent = Math.min(daysOverdue * 10, 90); // 10% per day, max 90%
-                        finalPoints = Math.max(Math.round(mission.points * (1 - decayPercent / 100)), 1); // Min 1 point
-                        decayMessage = `\n\n⚠️ ${daysOverdue} day(s) overdue: ${decayPercent}% decay applied`;
-                    }
-                }
-                
-                // Add completion record with mission details
-                await addDoc(collection(db, 'completions'), {
-                    familyId: currentFamily.id,
-                    memberId: currentMember.id,
-                    memberName: currentMember.name || currentMember.email,
-                    missionId: missionId,
-                    missionTitle: mission.title,
-                    points: finalPoints,
-                    originalPoints: mission.points,
-                    completedAt: serverTimestamp()
+                // Mark mission as submitted for approval
+                await updateDoc(doc(db, 'missions', missionId), {
+                    status: 'submitted',
+                    submittedBy: currentMember.id,
+                    submittedAt: serverTimestamp()
                 });
                 
-                // Delete the mission after completion
-                await deleteDoc(doc(db, 'missions', missionId));
-                
-                alert(`Mission completed! +${finalPoints} points${decayMessage}`);
+                alert('Mission submitted for approval!');
             } catch (error) {
-                console.error('Error completing mission:', error);
-                alert('Failed to complete mission. Please try again.');
+                console.error('Error submitting mission:', error);
+                alert('Failed to submit mission. Please try again.');
             }
         };
 
