@@ -279,6 +279,20 @@
             border-color: var(--chalk-accent);
         }
         
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px;
+            cursor: pointer;
+            font-size: 1.3em;
+            transition: transform 0.2s;
+        }
+        
+        .theme-btn:hover {
+            transform: scale(1.2);
+        }
+        
         /* Horizontal Navigation Bar */
         .nav-bar {
             display: flex;
@@ -1206,42 +1220,49 @@
                     <div class="theme-preview-color" style="background: #f4a261"></div>
                     <div class="theme-preview-color" style="background: #e76f51"></div>
                 </div>
-                <div class="theme-name">🔶 Amber (Default)</div>
+                <div class="theme-name">Amber (Default)</div>
             </div>
             <div class="theme-option" onclick="setTheme('mint')">
                 <div class="theme-preview">
                     <div class="theme-preview-color" style="background: #6dd4a8"></div>
                     <div class="theme-preview-color" style="background: #5bc4a0"></div>
                 </div>
-                <div class="theme-name">🌿 Mint</div>
+                <div class="theme-name">Mint</div>
             </div>
             <div class="theme-option" onclick="setTheme('military')">
                 <div class="theme-preview">
                     <div class="theme-preview-color" style="background: #6b8e23"></div>
                     <div class="theme-preview-color" style="background: #556b2f"></div>
                 </div>
-                <div class="theme-name">🎖️ Military Green</div>
+                <div class="theme-name">Military Green</div>
             </div>
             <div class="theme-option" onclick="setTheme('steel')">
                 <div class="theme-preview">
                     <div class="theme-preview-color" style="background: #4682b4"></div>
                     <div class="theme-preview-color" style="background: #5f9ea0"></div>
                 </div>
-                <div class="theme-name">⚙️ Steel Blue</div>
+                <div class="theme-name">Steel Blue</div>
             </div>
             <div class="theme-option" onclick="setTheme('rose')">
                 <div class="theme-preview">
                     <div class="theme-preview-color" style="background: #e6a8a8"></div>
                     <div class="theme-preview-color" style="background: #d4a5a5"></div>
                 </div>
-                <div class="theme-name">💎 Rose Gold</div>
+                <div class="theme-name">Rose Gold</div>
             </div>
             <div class="theme-option" onclick="setTheme('lavender')">
                 <div class="theme-preview">
                     <div class="theme-preview-color" style="background: #9b7bbe"></div>
                     <div class="theme-preview-color" style="background: #b19cd9"></div>
                 </div>
-                <div class="theme-name">🌸 Lavender</div>
+                <div class="theme-name">Lavender</div>
+            </div>
+            <div class="theme-option" onclick="setTheme('red')">
+                <div class="theme-preview">
+                    <div class="theme-preview-color" style="background: #dc2626"></div>
+                    <div class="theme-preview-color" style="background: #b91c1c"></div>
+                </div>
+                <div class="theme-name">Red</div>
             </div>
             <div class="modal-buttons">
                 <button class="modal-btn secondary" onclick="closeModal('themeModal')">Close</button>
@@ -1698,10 +1719,9 @@
             // Filter missions for current member
             const activeMissions = missions.filter(m => {
                 if (m.status !== 'active') return false;
-                // Show missions assigned to this member, to "anyone", or created by this parent
-                return m.assignedTo === currentMember.id || 
-                       m.assignedTo === 'anyone' || 
-                       (isParent && m.createdBy === currentUser.uid);
+                if (isParent) return true; // Parents see ALL active missions
+                // Kids only see missions assigned to them or to "anyone"
+                return m.assignedTo === currentMember.id || m.assignedTo === 'anyone';
             });
             
             const requestedMissions = missions.filter(m => {
@@ -1788,7 +1808,7 @@
                 `;
             } else if (isSubmitted && isParent) {
                 // Completion approval (parent view)
-                statusBadge = '<span class="card-badge" style="background: var(--chalk-warning);">⏳ Awaiting Approval</span>';
+                statusBadge = '<span style="font-size: 1.3em;">⏳</span>';
                 actionsHTML = `
                     <div class="card-actions">
                         <button class="card-btn success" onclick="approveCompletion('${mission.id}', event)">Approve</button>
@@ -1797,7 +1817,7 @@
                 `;
             } else if (isSubmitted && !isParent) {
                 // Submitted by kid, waiting for approval
-                statusBadge = '<span class="card-badge" style="background: var(--chalk-warning);">⏳ Submitted for Approval</span>';
+                statusBadge = '<span style="font-size: 1.3em;">⏳</span>';
                 actionsHTML = ''; // No actions for kids on submitted missions
             } else if (mission.status === 'active') {
                 // Active mission - can be completed
@@ -2248,19 +2268,6 @@
             }
         };
 
-        window.approveMission = async (missionId, event) => {
-            event.stopPropagation();
-            
-            try {
-                await updateDoc(doc(db, 'missions', missionId), {
-                    status: 'active'
-                });
-            } catch (error) {
-                console.error('Error approving mission:', error);
-                alert('Failed to approve mission. Please try again.');
-            }
-        };
-
         window.completeMission = async (missionId, event) => {
             event.stopPropagation();
             
@@ -2594,6 +2601,10 @@
             lavender: {
                 accentPrimary: '#9b7bbe',
                 accentSecondary: '#b19cd9'
+            },
+            red: {
+                accentPrimary: '#dc2626',
+                accentSecondary: '#b91c1c'
             }
         };
 
