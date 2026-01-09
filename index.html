@@ -475,6 +475,12 @@
             box-shadow: 0 0 20px rgba(109, 212, 168, 0.2);
         }
         
+        .card.highlighted {
+            border-color: var(--chalk-accent);
+            background: rgba(109, 212, 168, 0.15);
+            box-shadow: 0 0 15px rgba(109, 212, 168, 0.3);
+        }
+        
         .card-header { 
             display: flex; 
             justify-content: space-between; 
@@ -973,6 +979,7 @@
             <div class="header-right">
                 <img id="userAvatar" class="user-avatar" src="" alt="User">
                 <button class="theme-btn" onclick="showThemeModal()" title="Change Theme">🎨</button>
+                <button class="theme-btn" onclick="showGameRules()" title="Game Rules">📏</button>
                 <button class="logout-btn" onclick="signOut()">Logout</button>
             </div>
         </div>
@@ -1013,11 +1020,9 @@
                 <div class="section-header">My Stats</div>
                 <div class="stats-grid" id="personalStats"></div>
                 
-                <!-- Family Dashboard (Parents Only) -->
-                <div id="familyDashboard" class="hidden">
-                    <div class="section-header">Family Dashboard</div>
-                    <div id="familyMembersList"></div>
-                </div>
+                <div class="section-header">Leaderboard</div>
+                <div id="leaderboardList"></div>
+                <div id="leaderboardRewards" style="margin-top: 20px;"></div>
             </div>
 
             <!-- REC ROOM TAB -->
@@ -1050,12 +1055,27 @@
                 <div class="section-header">Completion Log</div>
                 <div id="completionLogList"></div>
 
+                <div class="section-header">Game Rewards</div>
+                <div class="card">
+                    <div class="form-group">
+                        <label>Goal Reward (Optional)</label>
+                        <input type="text" id="goalRewardInput" placeholder="e.g., Ice cream party, $10, Movie night">
+                        <button class="add-btn" onclick="saveGoalReward()" style="margin-top: 10px;">Save Goal Reward</button>
+                    </div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Winner's Reward (Optional)</label>
+                        <input type="text" id="winnerRewardInput" placeholder="e.g., Choose dinner, Extra screen time">
+                        <button class="add-btn" onclick="saveWinnerReward()" style="margin-top: 10px;">Save Winner's Reward</button>
+                    </div>
+                    <div id="currentRewards" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--card-border);"></div>
+                </div>
+
                 <div class="section-header">Data Management</div>
                 <button class="add-btn" onclick="resetFamilyData()" style="background: transparent; border-color: var(--chalk-danger); color: var(--chalk-danger);">
-                    ⚠️ Reset All Family Data
+                    🎮 New Game
                 </button>
                 <p style="color: var(--chalk-muted); font-size: 0.85em; margin-top: -10px; margin-bottom: 20px; text-align: center; font-style: italic;">
-                    💡 Tip: Use reset to start fresh each week or month. All missions and completion history will be deleted.
+                    💡 Tip: Use New Game to start fresh each week or month. All missions and completion history will be cleared.
                 </p>
 
                 <div class="section-header">Family Members</div>
@@ -1207,6 +1227,53 @@
             <div class="modal-buttons">
                 <button class="modal-btn secondary" onclick="closeModal('approveMissionModal')">Cancel</button>
                 <button class="modal-btn primary" onclick="confirmApproveMission()">Approve Mission</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Rules Modal -->
+    <div id="gameRulesModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <h2>📏 Game Rules</h2>
+            <p style="color: var(--chalk-muted); line-height: 1.6; margin-bottom: 20px;">
+                Home Base is a family Challenge where completing real-world tasks helps you climb the leaderboard. The goal is to reach your Point Goal or have the highest score when the current Mission cycle ends.
+            </p>
+            
+            <h3 style="color: var(--chalk-accent); margin-top: 20px;">For Parents</h3>
+            <p style="color: var(--chalk-muted); line-height: 1.6; margin-bottom: 10px;">
+                As a parent, you manage the Missions, points, and rewards for the family.
+            </p>
+            <ul style="color: var(--chalk-muted); line-height: 1.8; margin-left: 20px;">
+                <li><strong>Create Missions:</strong> Go to the Home tab and select + Add Mission to create a task with a due date and point value (1–20).</li>
+                <li><strong>High-Priority Missions:</strong> Use the Side Mission checkbox for important tasks, which will be highlighted on the board.</li>
+                <li><strong>Review Requests:</strong> When a kid suggests a Side Mission, review it in your Mission Requests list, assign points, and approve it to make it active.</li>
+                <li><strong>Set Rewards:</strong> In Mission Control, set optional Goal Rewards for hitting targets and Winner's Rewards for the top scorer.</li>
+                <li><strong>Verify and Approve:</strong> When a task is marked complete, check the work in real life, then approve the completion in your approvals list to award points.</li>
+                <li><strong>Manage Time:</strong> Late tasks automatically lose 10% of their value for every day they are past due.</li>
+                <li><strong>Start New Game:</strong> Use the New Game button in Mission Control to clear the leaderboard and active Missions for a fresh start.</li>
+            </ul>
+            
+            <h3 style="color: var(--chalk-accent); margin-top: 20px;">For Kids</h3>
+            <p style="color: var(--chalk-muted); line-height: 1.6; margin-bottom: 10px;">
+                As a kid, you are a player in the Challenge. Complete tasks in real life to move up the leaderboard and earn rewards.
+            </p>
+            <ul style="color: var(--chalk-muted); line-height: 1.8; margin-left: 20px;">
+                <li><strong>Earn Points:</strong> Check the Home tab for Active Missions; some are assigned to you, while "Anyone" tasks are a race to finish first.</li>
+                <li><strong>Suggest Side Missions:</strong> Use + Add Mission to suggest a Side Mission to your parents for more ways to earn points.</li>
+                <li><strong>Track Rankings:</strong> Check the Stats tab to see your total points, Mission count, and your position on the family leaderboard.</li>
+                <li><strong>Win Rewards:</strong> Reach your personal Point Goal for the Goal Reward or have the most points at the end for the Winner's Reward.</li>
+                <li><strong>Be Fast:</strong> Finish tasks before the due date to avoid the daily point decrease for late Missions.</li>
+            </ul>
+            
+            <h3 style="color: var(--chalk-accent); margin-top: 20px;">Quick Controls</h3>
+            <ul style="color: var(--chalk-muted); line-height: 1.8; margin-left: 20px;">
+                <li><strong>Complete:</strong> Find a task on the Home tab and select Complete to send it to your parents for verification.</li>
+                <li><strong>Routines:</strong> Use the Routines tab to track personal daily habits; these do not award points and are for your own organization.</li>
+                <li><strong>Theme:</strong> Select the 🎨 icon in the header to customize your app colors.</li>
+            </ul>
+            
+            <div class="modal-buttons" style="margin-top: 30px;">
+                <button class="modal-btn primary" onclick="closeModal('gameRulesModal')">Got It!</button>
             </div>
         </div>
     </div>
@@ -1532,6 +1599,9 @@
             if (inviteCodeEl && currentFamily.inviteCode) {
                 inviteCodeEl.textContent = currentFamily.inviteCode;
             }
+            
+            // Update rewards display in Mission Control
+            updateMissionControlRewards();
         }
 
         function updateMembersUI() {
@@ -1837,10 +1907,10 @@
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-title">${mission.title}</div>
-                    <div>
+                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
                         ${statusBadge}
-                        ${isSideMission ? '<span class="card-badge side-mission">⭐ Side Mission</span>' : ''}
                         <span class="card-badge points">${pointsDisplay}</span>
+                        ${isSideMission ? '<span class="card-badge side-mission">⭐ Side Mission</span>' : ''}
                     </div>
                 </div>
                 <div class="card-body">${mission.description || 'No description'}</div>
@@ -1922,6 +1992,130 @@
                     <div class="stat-label">Routines</div>
                 </div>
             `;
+            
+            updateLeaderboard();
+        }
+
+        function updateLeaderboard() {
+            const leaderboardList = document.getElementById('leaderboardList');
+            const leaderboardRewards = document.getElementById('leaderboardRewards');
+            
+            // Calculate stats for each member
+            const memberStats = allMembers.map(member => {
+                const memberCompletions = completions.filter(c => c.memberId === member.id);
+                const totalPoints = memberCompletions.reduce((sum, c) => sum + (c.points || 0), 0);
+                const missionsCompleted = memberCompletions.length;
+                const sideMissionsCompleted = memberCompletions.filter(c => {
+                    const mission = missions.find(m => m.id === c.missionId);
+                    return mission?.sideMission;
+                }).length;
+                
+                return {
+                    ...member,
+                    totalPoints,
+                    missionsCompleted,
+                    sideMissionsCompleted
+                };
+            });
+            
+            // Sort by total points descending
+            memberStats.sort((a, b) => b.totalPoints - a.totalPoints);
+            
+            // Build leaderboard HTML
+            let leaderboardHTML = '';
+            memberStats.forEach((member, index) => {
+                const rank = index + 1;
+                const isCurrentUser = member.id === currentMember.id;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                
+                leaderboardHTML += `
+                    <div class="card ${isCurrentUser ? 'highlighted' : ''}" style="margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="font-size: 2em; min-width: 40px; text-align: center;">${medal}</div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; font-size: 1.1em; color: var(--chalk-text); margin-bottom: 5px;">
+                                    ${member.name || member.email} ${isCurrentUser ? '(You)' : ''}
+                                </div>
+                                <div style="display: flex; gap: 15px; font-size: 0.9em; color: var(--chalk-muted); flex-wrap: wrap;">
+                                    <span>💎 ${member.totalPoints} pts</span>
+                                    <span>✅ ${member.missionsCompleted}</span>
+                                    <span>⭐ ${member.sideMissionsCompleted}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            leaderboardList.innerHTML = leaderboardHTML;
+            
+            // Display rewards if they exist
+            if (currentFamily && (currentFamily.goalReward || currentFamily.winnerReward)) {
+                let rewardsHTML = '<div class="card" style="background: rgba(109, 212, 168, 0.1); border-color: var(--chalk-accent);">';
+                rewardsHTML += '<h3 style="color: var(--chalk-accent); margin-bottom: 15px;">🏆 Active Rewards</h3>';
+                
+                if (currentFamily.goalReward) {
+                    rewardsHTML += `<div style="margin-bottom: 10px; color: var(--chalk-text);"><strong>Goal Reward:</strong> ${currentFamily.goalReward}</div>`;
+                }
+                if (currentFamily.winnerReward) {
+                    rewardsHTML += `<div style="color: var(--chalk-text);"><strong>Winner's Reward:</strong> ${currentFamily.winnerReward}</div>`;
+                }
+                
+                rewardsHTML += '</div>';
+                leaderboardRewards.innerHTML = rewardsHTML;
+            } else {
+                leaderboardRewards.innerHTML = '';
+            }
+        }
+
+        window.saveGoalReward = async () => {
+            const reward = document.getElementById('goalRewardInput').value.trim();
+            
+            try {
+                await updateDoc(doc(db, 'families', currentFamily.id), {
+                    goalReward: reward || null
+                });
+                document.getElementById('goalRewardInput').value = '';
+                alert('Goal Reward saved!');
+                updateMissionControlRewards();
+            } catch (error) {
+                console.error('Error saving goal reward:', error);
+                alert('Failed to save goal reward. Please try again.');
+            }
+        };
+
+        window.saveWinnerReward = async () => {
+            const reward = document.getElementById('winnerRewardInput').value.trim();
+            
+            try {
+                await updateDoc(doc(db, 'families', currentFamily.id), {
+                    winnerReward: reward || null
+                });
+                document.getElementById('winnerRewardInput').value = '';
+                alert('Winner\'s Reward saved!');
+                updateMissionControlRewards();
+            } catch (error) {
+                console.error('Error saving winner reward:', error);
+                alert('Failed to save winner reward. Please try again.');
+            }
+        };
+
+        function updateMissionControlRewards() {
+            const currentRewardsDiv = document.getElementById('currentRewards');
+            if (!currentRewardsDiv) return;
+            
+            if (currentFamily && (currentFamily.goalReward || currentFamily.winnerReward)) {
+                let html = '<div style="color: var(--chalk-muted); font-size: 0.9em;"><strong>Current Rewards:</strong></div>';
+                if (currentFamily.goalReward) {
+                    html += `<div style="color: var(--chalk-text); margin-top: 5px;">Goal: ${currentFamily.goalReward}</div>`;
+                }
+                if (currentFamily.winnerReward) {
+                    html += `<div style="color: var(--chalk-text); margin-top: 5px;">Winner: ${currentFamily.winnerReward}</div>`;
+                }
+                currentRewardsDiv.innerHTML = html;
+            } else {
+                currentRewardsDiv.innerHTML = '<div style="color: var(--chalk-muted); font-size: 0.9em; font-style: italic;">No rewards set</div>';
+            }
         }
 
         // Auth Functions
@@ -2609,6 +2803,8 @@
         };
 
         window.showThemeModal = () => document.getElementById('themeModal').classList.add('active');
+        
+        window.showGameRules = () => document.getElementById('gameRulesModal').classList.add('active');
 
         window.setTheme = (themeName) => {
             const theme = themes[themeName];
@@ -2655,7 +2851,13 @@
                     await deleteDoc(doc(db, 'completions', completion.id));
                 }
                 
-                alert('✅ All mission data has been reset! Starting fresh. Routines and members have been preserved.');
+                // Clear rewards
+                await updateDoc(doc(db, 'families', currentFamily.id), {
+                    goalReward: null,
+                    winnerReward: null
+                });
+                
+                alert('🎮 New Game started! All mission data and rewards have been cleared. Routines and members have been preserved.');
             } catch (error) {
                 console.error('Error resetting family data:', error);
                 alert('Failed to reset family data. Please try again.');
