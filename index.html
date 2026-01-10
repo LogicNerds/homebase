@@ -1055,6 +1055,13 @@
                 <div class="section-header">Completion Log</div>
                 <div id="completionLogList"></div>
 
+                <div class="section-header">Mission Templates</div>
+                <div class="card">
+                    <p style="color: var(--chalk-muted); margin-bottom: 15px;">Save missions as templates for quick reuse. Templates survive the New Game reset.</p>
+                    <button class="add-btn" onclick="showSaveAsTemplateModal()">Save Current Mission as Template</button>
+                    <div id="templatesList" style="margin-top: 20px;"></div>
+                </div>
+
                 <div class="section-header">Game Rewards</div>
                 <div class="card">
                     <div class="form-group">
@@ -1063,16 +1070,16 @@
                         <button class="add-btn" onclick="saveGoalReward()" style="margin-top: 10px;">Save Goal Reward</button>
                     </div>
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Winner's Reward (Optional)</label>
-                        <input type="text" id="winnerRewardInput" placeholder="e.g., Choose dinner, Extra screen time">
-                        <button class="add-btn" onclick="saveWinnerReward()" style="margin-top: 10px;">Save Winner's Reward</button>
+                        <label>Bonus Reward (Optional)</label>
+                        <input type="text" id="bonusRewardInput" placeholder="e.g., Choose dinner, Extra screen time">
+                        <button class="add-btn" onclick="saveBonusReward()" style="margin-top: 10px;">Save Bonus Reward</button>
                     </div>
                     <div id="currentRewards" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--card-border);"></div>
                 </div>
 
                 <div class="section-header">Data Management</div>
                 <button class="add-btn" onclick="resetFamilyData()" style="background: transparent; border-color: var(--chalk-danger); color: var(--chalk-danger);">
-                    🎮 New Game
+                    New Game
                 </button>
                 <p style="color: var(--chalk-muted); font-size: 0.85em; margin-top: -10px; margin-bottom: 20px; text-align: center; font-style: italic;">
                     💡 Tip: Use New Game to start fresh each week or month. All missions and completion history will be cleared.
@@ -1234,7 +1241,7 @@
     <!-- Game Rules Modal -->
     <div id="gameRulesModal" class="modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
-            <h2>📏 Game Rules</h2>
+            <h2>Game Rules</h2>
             <p style="color: var(--chalk-muted); line-height: 1.6; margin-bottom: 20px;">
                 Home Base is a family Challenge where completing real-world tasks helps you climb the leaderboard. The goal is to reach your Point Goal or have the highest score when the current Mission cycle ends.
             </p>
@@ -1247,7 +1254,7 @@
                 <li><strong>Create Missions:</strong> Go to the Home tab and select + Add Mission to create a task with a due date and point value (1–20).</li>
                 <li><strong>High-Priority Missions:</strong> Use the Side Mission checkbox for important tasks, which will be highlighted on the board.</li>
                 <li><strong>Review Requests:</strong> When a kid suggests a Side Mission, review it in your Mission Requests list, assign points, and approve it to make it active.</li>
-                <li><strong>Set Rewards:</strong> In Mission Control, set optional Goal Rewards for hitting targets and Winner's Rewards for the top scorer.</li>
+                <li><strong>Set Rewards:</strong> In Mission Control, set optional Goal Rewards for hitting targets and Bonus Rewards for top performers.</li>
                 <li><strong>Verify and Approve:</strong> When a task is marked complete, check the work in real life, then approve the completion in your approvals list to award points.</li>
                 <li><strong>Manage Time:</strong> Late tasks automatically lose 10% of their value for every day they are past due.</li>
                 <li><strong>Start New Game:</strong> Use the New Game button in Mission Control to clear the leaderboard and active Missions for a fresh start.</li>
@@ -1261,7 +1268,7 @@
                 <li><strong>Earn Points:</strong> Check the Home tab for Active Missions; some are assigned to you, while "Anyone" tasks are a race to finish first.</li>
                 <li><strong>Suggest Side Missions:</strong> Use + Add Mission to suggest a Side Mission to your parents for more ways to earn points.</li>
                 <li><strong>Track Rankings:</strong> Check the Stats tab to see your total points, Mission count, and your position on the family leaderboard.</li>
-                <li><strong>Win Rewards:</strong> Reach your personal Point Goal for the Goal Reward or have the most points at the end for the Winner's Reward.</li>
+                <li><strong>Win Rewards:</strong> Reach your personal Point Goal for the Goal Reward or have the most points at the end for the Bonus Reward.</li>
                 <li><strong>Be Fast:</strong> Finish tasks before the due date to avoid the daily point decrease for late Missions.</li>
             </ul>
             
@@ -1269,11 +1276,32 @@
             <ul style="color: var(--chalk-muted); line-height: 1.8; margin-left: 20px;">
                 <li><strong>Complete:</strong> Find a task on the Home tab and select Complete to send it to your parents for verification.</li>
                 <li><strong>Routines:</strong> Use the Routines tab to track personal daily habits; these do not award points and are for your own organization.</li>
-                <li><strong>Theme:</strong> Select the 🎨 icon in the header to customize your app colors.</li>
+                <li><strong>Theme:</strong> Select the palette icon in the header to customize your app colors.</li>
             </ul>
             
             <div class="modal-buttons" style="margin-top: 30px;">
                 <button class="modal-btn primary" onclick="closeModal('gameRulesModal')">Got It!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Mission Template Modal -->
+    <div id="saveTemplateModal" class="modal">
+        <div class="modal-content">
+            <h2>Save Mission as Template</h2>
+            <div class="form-group">
+                <label>Template Name</label>
+                <input type="text" id="templateName" placeholder="e.g., Weekly Room Cleaning">
+            </div>
+            <div class="form-group">
+                <label>Select Mission to Save</label>
+                <select id="templateMissionSelect">
+                    <option value="">Choose a mission...</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('saveTemplateModal')">Cancel</button>
+                <button class="modal-btn primary" onclick="saveTemplate()">Save Template</button>
             </div>
         </div>
     </div>
@@ -1401,11 +1429,13 @@
         let allMembers = [];
         let missions = [];
         let routines = [];
+        let templates = [];
         let completions = [];
         let unsubscribeFamilyListener = null;
         let unsubscribeMembersListener = null;
         let unsubscribeMissionsListener = null;
         let unsubscribeRoutinesListener = null;
+        let unsubscribeTemplatesListener = null;
         let unsubscribeCompletionsListener = null;
         let selectedMissionPoints = 1;
         let selectedEditMissionPoints = 1;
@@ -1459,6 +1489,7 @@
             loadMembersData();
             loadMissionsData();
             loadRoutinesData();
+            loadTemplatesData();
             loadCompletionsData();
             updateNavigation();
         }
@@ -2011,15 +2042,15 @@
             leaderboardList.innerHTML = leaderboardHTML;
             
             // Display rewards if they exist
-            if (currentFamily && (currentFamily.goalReward || currentFamily.winnerReward)) {
+            if (currentFamily && (currentFamily.goalReward || currentFamily.bonusReward)) {
                 let rewardsHTML = '<div class="card" style="background: rgba(109, 212, 168, 0.1); border-color: var(--chalk-accent);">';
-                rewardsHTML += '<h3 style="color: var(--chalk-accent); margin-bottom: 15px;">🏆 Active Rewards</h3>';
+                rewardsHTML += '<h3 style="color: var(--chalk-accent); margin-bottom: 15px;">Active Rewards</h3>';
                 
                 if (currentFamily.goalReward) {
                     rewardsHTML += `<div style="margin-bottom: 10px; color: var(--chalk-text);"><strong>Goal Reward:</strong> ${currentFamily.goalReward}</div>`;
                 }
-                if (currentFamily.winnerReward) {
-                    rewardsHTML += `<div style="color: var(--chalk-text);"><strong>Winner's Reward:</strong> ${currentFamily.winnerReward}</div>`;
+                if (currentFamily.bonusReward) {
+                    rewardsHTML += `<div style="color: var(--chalk-text);"><strong>Bonus Reward:</strong> ${currentFamily.bonusReward}</div>`;
                 }
                 
                 rewardsHTML += '</div>';
@@ -2045,19 +2076,19 @@
             }
         };
 
-        window.saveWinnerReward = async () => {
-            const reward = document.getElementById('winnerRewardInput').value.trim();
+        window.saveBonusReward = async () => {
+            const reward = document.getElementById('bonusRewardInput').value.trim();
             
             try {
                 await updateDoc(doc(db, 'families', currentFamily.id), {
-                    winnerReward: reward || null
+                    bonusReward: reward || null
                 });
-                document.getElementById('winnerRewardInput').value = '';
-                alert('Winner\'s Reward saved!');
+                document.getElementById('bonusRewardInput').value = '';
+                alert('Bonus Reward saved!');
                 updateMissionControlRewards();
             } catch (error) {
-                console.error('Error saving winner reward:', error);
-                alert('Failed to save winner reward. Please try again.');
+                console.error('Error saving bonus reward:', error);
+                alert('Failed to save bonus reward. Please try again.');
             }
         };
 
@@ -2065,19 +2096,148 @@
             const currentRewardsDiv = document.getElementById('currentRewards');
             if (!currentRewardsDiv) return;
             
-            if (currentFamily && (currentFamily.goalReward || currentFamily.winnerReward)) {
+            if (currentFamily && (currentFamily.goalReward || currentFamily.bonusReward)) {
                 let html = '<div style="color: var(--chalk-muted); font-size: 0.9em;"><strong>Current Rewards:</strong></div>';
                 if (currentFamily.goalReward) {
                     html += `<div style="color: var(--chalk-text); margin-top: 5px;">Goal: ${currentFamily.goalReward}</div>`;
                 }
-                if (currentFamily.winnerReward) {
-                    html += `<div style="color: var(--chalk-text); margin-top: 5px;">Winner: ${currentFamily.winnerReward}</div>`;
+                if (currentFamily.bonusReward) {
+                    html += `<div style="color: var(--chalk-text); margin-top: 5px;">Bonus: ${currentFamily.bonusReward}</div>`;
                 }
                 currentRewardsDiv.innerHTML = html;
             } else {
                 currentRewardsDiv.innerHTML = '<div style="color: var(--chalk-muted); font-size: 0.9em; font-style: italic;">No rewards set</div>';
             }
         }
+
+        // Template Management
+        function loadTemplatesData() {
+            if (!currentFamily) return;
+            
+            if (unsubscribeTemplatesListener) unsubscribeTemplatesListener();
+            
+            const templatesQuery = query(
+                collection(db, 'missionTemplates'),
+                where('familyId', '==', currentFamily.id)
+            );
+            
+            unsubscribeTemplatesListener = onSnapshot(templatesQuery, (snapshot) => {
+                templates = [];
+                snapshot.forEach((doc) => {
+                    templates.push({ id: doc.id, ...doc.data() });
+                });
+                updateTemplatesList();
+            });
+        }
+
+        function updateTemplatesList() {
+            const templatesList = document.getElementById('templatesList');
+            if (!templatesList) return;
+            
+            if (templates.length === 0) {
+                templatesList.innerHTML = '<p style="color: var(--chalk-muted); text-align: center; margin-top: 15px;">No templates saved yet</p>';
+                return;
+            }
+            
+            let html = '';
+            templates.forEach(template => {
+                html += `
+                    <div class="card" style="margin-top: 15px;">
+                        <div class="card-header">
+                            <div class="card-title">${template.name}</div>
+                            <span class="card-badge points">${template.points} pts</span>
+                        </div>
+                        <div class="card-body">${template.description || 'No description'}</div>
+                        <div class="card-actions">
+                            <button class="card-btn primary" onclick="useTemplate('${template.id}')">Use Template</button>
+                            <button class="card-btn danger" onclick="deleteTemplate('${template.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            templatesList.innerHTML = html;
+        }
+
+        window.showSaveAsTemplateModal = () => {
+            // Populate mission dropdown with active missions
+            const select = document.getElementById('templateMissionSelect');
+            select.innerHTML = '<option value="">Choose a mission...</option>';
+            
+            missions.filter(m => m.status === 'active').forEach(mission => {
+                const option = document.createElement('option');
+                option.value = mission.id;
+                option.textContent = mission.title;
+                select.appendChild(option);
+            });
+            
+            document.getElementById('saveTemplateModal').classList.add('active');
+        };
+
+        window.saveTemplate = async () => {
+            const name = document.getElementById('templateName').value.trim();
+            const missionId = document.getElementById('templateMissionSelect').value;
+            
+            if (!name) {
+                alert('Please enter a template name');
+                return;
+            }
+            
+            if (!missionId) {
+                alert('Please select a mission');
+                return;
+            }
+            
+            const mission = missions.find(m => m.id === missionId);
+            if (!mission) return;
+            
+            try {
+                await addDoc(collection(db, 'missionTemplates'), {
+                    familyId: currentFamily.id,
+                    name: name,
+                    title: mission.title,
+                    description: mission.description,
+                    points: mission.points,
+                    sideMission: mission.sideMission,
+                    createdAt: serverTimestamp()
+                });
+                
+                closeModal('saveTemplateModal');
+                document.getElementById('templateName').value = '';
+                alert('Template saved!');
+            } catch (error) {
+                console.error('Error saving template:', error);
+                alert('Failed to save template. Please try again.');
+            }
+        };
+
+        window.useTemplate = async (templateId) => {
+            const template = templates.find(t => t.id === templateId);
+            if (!template) return;
+            
+            // Pre-fill the add mission modal with template data
+            document.getElementById('missionTitle').value = template.title;
+            document.getElementById('missionDescription').value = template.description || '';
+            document.getElementById('missionSideMission').checked = template.sideMission || false;
+            
+            // Set points
+            selectedMissionPoints = template.points;
+            document.querySelectorAll('#addMissionModal .points-btn').forEach(b => b.classList.remove('selected'));
+            const pointsBtn = Array.from(document.querySelectorAll('#addMissionModal .points-btn')).find(b => parseInt(b.textContent) === template.points);
+            if (pointsBtn) pointsBtn.classList.add('selected');
+            
+            showModal('addMissionModal');
+        };
+
+        window.deleteTemplate = async (templateId) => {
+            if (!confirm('Delete this template?')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'missionTemplates', templateId));
+            } catch (error) {
+                console.error('Error deleting template:', error);
+                alert('Failed to delete template. Please try again.');
+            }
+        };
 
         // Auth Functions
         window.signInWithGoogle = async () => {
@@ -2815,10 +2975,10 @@
                 // Clear rewards
                 await updateDoc(doc(db, 'families', currentFamily.id), {
                     goalReward: null,
-                    winnerReward: null
+                    bonusReward: null
                 });
                 
-                alert('🎮 New Game started! All mission data and rewards have been cleared. Routines and members have been preserved.');
+                alert('New Game started! All mission data and rewards have been cleared. Routines and members have been preserved.');
             } catch (error) {
                 console.error('Error resetting family data:', error);
                 alert('Failed to reset family data. Please try again.');
