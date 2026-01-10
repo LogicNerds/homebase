@@ -481,6 +481,22 @@
             box-shadow: 0 0 15px rgba(109, 212, 168, 0.3);
         }
         
+        details summary {
+            user-select: none;
+        }
+        
+        details summary::-webkit-details-marker {
+            display: none;
+        }
+        
+        details[open] summary {
+            border-bottom: 2px solid var(--chalk-accent);
+        }
+        
+        details summary:hover {
+            background: var(--card-bg);
+        }
+        
         .card-header { 
             display: flex; 
             justify-content: space-between; 
@@ -615,6 +631,16 @@
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+        
+        .routine-card[draggable="true"] {
+            cursor: move;
+        }
+        
+        .routine-card:hover {
+            border-color: var(--chalk-accent);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
         }
         
         .routine-header {
@@ -1285,6 +1311,21 @@
         </div>
     </div>
 
+    <!-- Edit Routine Modal -->
+    <div id="editRoutineModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Routine</h2>
+            <div class="form-group">
+                <label>Routine Name</label>
+                <input type="text" id="editRoutineName" placeholder="e.g., Morning Routine">
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('editRoutineModal')">Cancel</button>
+                <button class="modal-btn primary" onclick="saveEditedRoutine()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Save Mission Template Modal -->
     <div id="saveTemplateModal" class="modal">
         <div class="modal-content">
@@ -1442,6 +1483,7 @@
         let selectedApproveMissionPoints = 1;
         let currentEditMissionId = null;
         let currentApproveMissionId = null;
+        let currentEditRoutineId = null;
         let currentEditMemberId = null;
         let currentRoutineId = null;
         let currentTab = 'home';
@@ -1811,10 +1853,70 @@
             if (activeMissions.length === 0) {
                 activeList.innerHTML = '<p style="color: var(--chalk-muted); text-align: center; padding: 20px;">No active missions</p>';
             } else {
-                activeMissions.forEach(mission => {
-                    const card = createMissionCard(mission, isParent);
-                    activeList.appendChild(card);
-                });
+                if (isParent) {
+                    // Parent view: Group missions by assignee with collapsible sections
+                    const myMissions = activeMissions.filter(m => m.assignedTo === currentMember.id);
+                    const anyoneMissions = activeMissions.filter(m => m.assignedTo === 'anyone');
+                    
+                    // Group by each child
+                    const childGroups = {};
+                    allMembers.filter(m => m.role === 'child').forEach(child => {
+                        childGroups[child.id] = {
+                            name: child.name || child.email,
+                            missions: activeMissions.filter(m => m.assignedTo === child.id)
+                        };
+                    });
+                    
+                    // My Missions
+                    if (myMissions.length > 0) {
+                        const details = document.createElement('details');
+                        details.open = true;
+                        details.innerHTML = `<summary style="font-weight: 600; color: var(--chalk-text); padding: 15px; cursor: pointer; list-style: none; border-bottom: 1px solid var(--card-border);">▶ My Missions (${myMissions.length})</summary>`;
+                        const container = document.createElement('div');
+                        container.style.padding = '15px 0';
+                        myMissions.forEach(mission => {
+                            container.appendChild(createMissionCard(mission, isParent));
+                        });
+                        details.appendChild(container);
+                        activeList.appendChild(details);
+                    }
+                    
+                    // Each child's missions
+                    Object.values(childGroups).forEach(group => {
+                        if (group.missions.length > 0) {
+                            const details = document.createElement('details');
+                            details.open = true;
+                            details.innerHTML = `<summary style="font-weight: 600; color: var(--chalk-text); padding: 15px; cursor: pointer; list-style: none; border-bottom: 1px solid var(--card-border);">▶ ${group.name}'s Missions (${group.missions.length})</summary>`;
+                            const container = document.createElement('div');
+                            container.style.padding = '15px 0';
+                            group.missions.forEach(mission => {
+                                container.appendChild(createMissionCard(mission, isParent));
+                            });
+                            details.appendChild(container);
+                            activeList.appendChild(details);
+                        }
+                    });
+                    
+                    // Anyone missions
+                    if (anyoneMissions.length > 0) {
+                        const details = document.createElement('details');
+                        details.open = true;
+                        details.innerHTML = `<summary style="font-weight: 600; color: var(--chalk-text); padding: 15px; cursor: pointer; list-style: none; border-bottom: 1px solid var(--card-border);">▶ Anyone Missions (${anyoneMissions.length})</summary>`;
+                        const container = document.createElement('div');
+                        container.style.padding = '15px 0';
+                        anyoneMissions.forEach(mission => {
+                            container.appendChild(createMissionCard(mission, isParent));
+                        });
+                        details.appendChild(container);
+                        activeList.appendChild(details);
+                    }
+                } else {
+                    // Kid view: Flat list (unchanged)
+                    activeMissions.forEach(mission => {
+                        const card = createMissionCard(mission, isParent);
+                        activeList.appendChild(card);
+                    });
+                }
             }
             
             // Update requested missions list
@@ -1855,7 +1957,13 @@
             const assignedMember = allMembers.find(m => m.id === mission.assignedTo);
             const assignedName = mission.assignedTo === 'anyone' ? 'Anyone' : (assignedMember?.name || 'Unassigned');
             
-            const dueDate = mission.dueDate ? new Date(mission.dueDate).toLocaleDateString() : 'No due date';
+            // Parse date in local timezone to avoid day-shift bug
+            let dueDate = 'No due date';
+            if (mission.dueDate) {
+                const dateParts = mission.dueDate.split('-');
+                const localDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+                dueDate = localDate.toLocaleDateString();
+            }
             
             let actionsHTML = '';
             let statusBadge = '';
@@ -1925,21 +2033,49 @@
                 return;
             }
             
-            routines.forEach(routine => {
+            // Sort routines by order field (if it exists)
+            const sortedRoutines = [...routines].sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            sortedRoutines.forEach((routine, index) => {
                 const card = document.createElement('div');
                 card.className = 'routine-card';
+                card.setAttribute('draggable', 'true');
+                card.setAttribute('data-routine-id', routine.id);
+                card.setAttribute('data-routine-index', index);
                 
-                const tasksHTML = (routine.tasks || []).map((task, index) => `
+                // Setup drag and drop
+                card.addEventListener('dragstart', handleRoutineDragStart);
+                card.addEventListener('dragover', handleRoutineDragOver);
+                card.addEventListener('drop', handleRoutineDrop);
+                card.addEventListener('dragend', handleRoutineDragEnd);
+                
+                // Migrate old string tasks to new object format if needed
+                const tasks = (routine.tasks || []).map(task => {
+                    if (typeof task === 'string') {
+                        return { text: task, completed: false };
+                    }
+                    return task;
+                });
+                
+                const tasksHTML = tasks.map((task, taskIndex) => `
                     <div class="routine-task">
-                        <span class="routine-task-text">${task}</span>
-                        <span class="routine-task-delete" onclick="deleteTaskFromRoutine('${routine.id}', ${index}, event)">×</span>
+                        <input type="checkbox" 
+                               ${task.completed ? 'checked' : ''} 
+                               onchange="toggleRoutineTask('${routine.id}', ${taskIndex})"
+                               style="margin-right: 10px; cursor: pointer; width: 18px; height: 18px;">
+                        <span class="routine-task-text" style="${task.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${task.text}</span>
+                        <span class="routine-task-delete" onclick="deleteTaskFromRoutine('${routine.id}', ${taskIndex}, event)">×</span>
                     </div>
                 `).join('');
                 
                 card.innerHTML = `
                     <div class="routine-header">
-                        <div class="routine-title">${routine.name}</div>
-                        <button class="card-btn danger" onclick="deleteRoutine('${routine.id}', event)" style="width: auto; padding: 6px 10px; flex: none;">Delete</button>
+                        <div class="routine-title" style="cursor: grab;">${routine.name}</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="card-btn primary" onclick="editRoutine('${routine.id}', event)" style="width: auto; padding: 6px 10px; flex: none;">Edit</button>
+                            <button class="card-btn success" onclick="resetRoutine('${routine.id}', event)" style="width: auto; padding: 6px 10px; flex: none;">Reset</button>
+                            <button class="card-btn danger" onclick="deleteRoutine('${routine.id}', event)" style="width: auto; padding: 6px 10px; flex: none;">Delete</button>
+                        </div>
                     </div>
                     <div>${tasksHTML || '<p style="color: var(--chalk-muted); font-size: 0.9em;">No tasks yet</p>'}</div>
                     <button class="add-btn" onclick="showAddTaskToRoutine('${routine.id}')" style="margin-top: 15px;">+ Add Task</button>
@@ -1948,6 +2084,147 @@
                 routinesList.appendChild(card);
             });
         }
+
+        // Drag and drop handlers for routine reordering
+        let draggedRoutine = null;
+
+        function handleRoutineDragStart(e) {
+            draggedRoutine = this;
+            this.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleRoutineDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleRoutineDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedRoutine !== this) {
+                const allCards = Array.from(document.querySelectorAll('.routine-card'));
+                const draggedIndex = allCards.indexOf(draggedRoutine);
+                const targetIndex = allCards.indexOf(this);
+                
+                if (draggedIndex < targetIndex) {
+                    this.parentNode.insertBefore(draggedRoutine, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedRoutine, this);
+                }
+                
+                // Update order in Firebase
+                updateRoutineOrder();
+            }
+            
+            return false;
+        }
+
+        function handleRoutineDragEnd(e) {
+            this.style.opacity = '1';
+            draggedRoutine = null;
+        }
+
+        async function updateRoutineOrder() {
+            const cards = Array.from(document.querySelectorAll('.routine-card'));
+            const updates = cards.map((card, index) => {
+                const routineId = card.getAttribute('data-routine-id');
+                return updateDoc(doc(db, 'routines', routineId), { order: index });
+            });
+            
+            try {
+                await Promise.all(updates);
+            } catch (error) {
+                console.error('Error updating routine order:', error);
+            }
+        }
+
+        window.toggleRoutineTask = async (routineId, taskIndex) => {
+            const routine = routines.find(r => r.id === routineId);
+            if (!routine) return;
+            
+            // Ensure tasks are in object format
+            const tasks = (routine.tasks || []).map(task => {
+                if (typeof task === 'string') {
+                    return { text: task, completed: false };
+                }
+                return task;
+            });
+            
+            // Toggle the completed state
+            tasks[taskIndex].completed = !tasks[taskIndex].completed;
+            
+            try {
+                await updateDoc(doc(db, 'routines', routineId), {
+                    tasks: tasks
+                });
+            } catch (error) {
+                console.error('Error toggling task:', error);
+            }
+        };
+
+        window.resetRoutine = async (routineId, event) => {
+            event.stopPropagation();
+            
+            const routine = routines.find(r => r.id === routineId);
+            if (!routine) return;
+            
+            // Ensure tasks are in object format and reset all to incomplete
+            const tasks = (routine.tasks || []).map(task => {
+                if (typeof task === 'string') {
+                    return { text: task, completed: false };
+                }
+                return { ...task, completed: false };
+            });
+            
+            try {
+                await updateDoc(doc(db, 'routines', routineId), {
+                    tasks: tasks
+                });
+            } catch (error) {
+                console.error('Error resetting routine:', error);
+                alert('Failed to reset routine. Please try again.');
+            }
+        };
+
+        window.editRoutine = (routineId, event) => {
+            event.stopPropagation();
+            
+            const routine = routines.find(r => r.id === routineId);
+            if (!routine) return;
+            
+            currentEditRoutineId = routineId;
+            document.getElementById('editRoutineName').value = routine.name;
+            showModal('editRoutineModal');
+        };
+
+        window.saveEditedRoutine = async () => {
+            if (!currentEditRoutineId) return;
+            
+            const newName = document.getElementById('editRoutineName').value.trim();
+            
+            if (!newName) {
+                alert('Please enter a routine name');
+                return;
+            }
+            
+            try {
+                await updateDoc(doc(db, 'routines', currentEditRoutineId), {
+                    name: newName
+                });
+                
+                closeModal('editRoutineModal');
+                currentEditRoutineId = null;
+            } catch (error) {
+                console.error('Error editing routine:', error);
+                alert('Failed to update routine. Please try again.');
+            }
+        };
 
         function updateStatsUI() {
             const personalStats = document.getElementById('personalStats');
@@ -2674,7 +2951,16 @@
                 const routine = routines.find(r => r.id === currentRoutineId);
                 if (!routine) return;
                 
-                const updatedTasks = [...(routine.tasks || []), taskText];
+                // Migrate existing tasks to object format if needed
+                const existingTasks = (routine.tasks || []).map(task => {
+                    if (typeof task === 'string') {
+                        return { text: task, completed: false };
+                    }
+                    return task;
+                });
+                
+                // Add new task in object format
+                const updatedTasks = [...existingTasks, { text: taskText, completed: false }];
                 
                 await updateDoc(doc(db, 'routines', currentRoutineId), {
                     tasks: updatedTasks
@@ -2696,7 +2982,15 @@
                 const routine = routines.find(r => r.id === routineId);
                 if (!routine) return;
                 
-                const updatedTasks = routine.tasks.filter((_, i) => i !== taskIndex);
+                // Migrate to object format if needed, then filter
+                const tasks = (routine.tasks || []).map(task => {
+                    if (typeof task === 'string') {
+                        return { text: task, completed: false };
+                    }
+                    return task;
+                });
+                
+                const updatedTasks = tasks.filter((_, i) => i !== taskIndex);
                 
                 await updateDoc(doc(db, 'routines', routineId), {
                     tasks: updatedTasks
